@@ -9,7 +9,7 @@ from satellites_db import SATELLITES
 # ========= 環境変数 & Secrets =========
 load_dotenv()
 API_KEY = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
-MODEL = st.secrets.get("GROQ_MODEL") or os.getenv("GROQ_MODEL") or "llama-3.2-11b-text"
+MODEL = st.secrets.get("GROQ_MODEL") or os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant"
 client  = Groq(api_key=API_KEY) if API_KEY else None
 
 # ========= システムプロンプト =========
