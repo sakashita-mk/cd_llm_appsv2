@@ -69,9 +69,9 @@ def _prompt_messages(uc_text: str) -> List[Dict[str, str]]:
   "goal": "観測目的（1〜2文）",
   "requirements": {{
     "actions": ["観測/推定したいこと（箇条書き）"],
-    "bands": "使う波長帯（例: 可視・近赤外・短波赤外・熱赤外）",
-    "gsd_m": 10,
-    "revisit_days": 3
+    "bands": "使う波長帯（例: 可視・近赤外・短波赤外・熱赤外・SAR）",
+    "gsd_m": "<目標地上分解能（m単位の推奨値）>",
+    "revisit_days": "<目標観測頻度（日単位の推奨値）>"
   }}
 }}
 
