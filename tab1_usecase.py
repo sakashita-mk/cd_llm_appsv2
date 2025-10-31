@@ -116,7 +116,7 @@ def render():
     uc_text = st.text_area("ユースケース入力（Tab1）", value=default_uc, height=140)
 
     # 生成/クリア ボタン（元の配置を崩さず拡張）
-    col_gen, col_clear = st.columns([1, 1])
+    col_gen, col_clear, col_clear = st.columns([1, 1, 1])
 
     with col_gen:
         if not client:
@@ -149,6 +149,11 @@ def render():
             st.session_state.pop("draft_plan", None)
             st.success("出力を削除しました。")
             st.rerun()
+
+    with col_ok:
+    if st.session_state.get("draft_plan") and st.button("OK（次へ）", type="secondary"):
+        st.session_state["confirmed_plan"] = st.session_state["draft_plan"]
+        st.success("観測設計ドラフトを確定しました。Tab2に進めます。")
 
     draft: Optional[Dict[str, Any]] = st.session_state.get("draft_plan")
     if not draft:
