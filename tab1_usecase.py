@@ -116,7 +116,7 @@ def render():
     uc_text = st.text_area("ユースケース入力（Tab1）", value=default_uc, height=140)
 
     # 生成/クリア ボタン（元の配置を崩さず拡張）
-    col_gen, col_clear, col_clear = st.columns([1, 1, 1])
+    col_gen, col_clear, col_ok = st.columns([1, 1, 1])
 
     with col_gen:
         if not client:
