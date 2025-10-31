@@ -144,7 +144,7 @@ def render():
                         st.code(text, language="markdown")
 
     with col_clear:
-        if st.button("修正が必要", type="secondary"):
+        if st.button("ユースケースを修正", type="secondary"):
             # 出力のみクリア（入力テキストは保持）
             st.session_state.pop("draft_plan", None)
             st.success("出力を削除しました。")
