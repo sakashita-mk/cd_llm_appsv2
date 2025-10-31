@@ -225,51 +225,51 @@ def render():
             st.markdown(f"- **{s.get('name','(名称不明)')}**：{s.get('why','')}")
     else:
         st.markdown("- （候補なし）")
-'''
-    st.markdown("#### 補完・取得戦略")
-    st.markdown(f"- 雲対策: {complements.get('cloud_mitigation', '（未記載）')}")
-    if complements.get("alternative_layers"):
-        st.markdown("- 代替/補完レイヤー: " + ", ".join(complements.get("alternative_layers")))
-    if complements.get("data_sources"):
-        st.markdown("- データソース: " + ", ".join(complements.get("data_sources")))
 
-    # Processing
-    st.markdown("### データ処理・融合・QA")
-    if processing.get("preprocess"):
-        st.markdown("- 前処理: " + " / ".join(processing.get("preprocess")))
-    if processing.get("features"):
-        st.markdown("- 特徴量: " + " / ".join(processing.get("features")))
-    if processing.get("fusion"):
-        st.markdown("- 融合: " + str(processing.get("fusion")))
-    if processing.get("qa"):
-        st.markdown("- QA: " + str(processing.get("qa")))
+#    st.markdown("#### 補完・取得戦略")
+#    st.markdown(f"- 雲対策: {complements.get('cloud_mitigation', '（未記載）')}")
+#    if complements.get("alternative_layers"):
+#        st.markdown("- 代替/補完レイヤー: " + ", ".join(complements.get("alternative_layers")))
+#    if complements.get("data_sources"):
+#        st.markdown("- データソース: " + ", ".join(complements.get("data_sources")))
 
-    # Deliverables
-    st.markdown("### 出力物（Deliverables）")
-    if deliverables:
-        st.markdown("- " + "\n- ".join(deliverables))
-    else:
-        st.markdown("- （未提示）")
+#    # Processing
+#    st.markdown("### データ処理・融合・QA")
+#    if processing.get("preprocess"):
+#        st.markdown("- 前処理: " + " / ".join(processing.get("preprocess")))
+#    if processing.get("features"):
+#        st.markdown("- 特徴量: " + " / ".join(processing.get("features")))
+#    if processing.get("fusion"):
+#        st.markdown("- 融合: " + str(processing.get("fusion")))
+#    if processing.get("qa"):
+#        st.markdown("- QA: " + str(processing.get("qa")))
+
+#    # Deliverables
+#    st.markdown("### 出力物（Deliverables）")
+#    if deliverables:
+#        st.markdown("- " + "\n- ".join(deliverables))
+#    else:
+#        st.markdown("- （未提示）")
 
     # Risks
-    st.markdown("### リスク＆留意点")
-    if risks:
-        st.markdown("- " + "\n- ".join(risks))
-    else:
-        st.markdown("- （未提示）")
+#    st.markdown("### リスク＆留意点")
+#    if risks:
+#        st.markdown("- " + "\n- ".join(risks))
+#    else:
+#        st.markdown("- （未提示）")
 
     # Next actions
-    st.markdown("### 次アクション")
-    if next_actions:
-        st.markdown("- " + "\n- ".join(next_actions))
-    else:
-        st.markdown("- （未提示）")
+#    st.markdown("### 次アクション")
+#    if next_actions:
+#        st.markdown("- " + "\n- ".join(next_actions))
+#    else:
+#        st.markdown("- （未提示）")
 
     # Assumptions
-    if assumptions:
-        st.markdown("### 前提条件")
-        st.markdown("- " + "\n- ".join(assumptions))
-'''
+#    if assumptions:
+#        st.markdown("### 前提条件")
+#        st.markdown("- " + "\n- ".join(assumptions))
+
     # Debug expander
     with st.expander("デバッグ（MODEL / APIキー有無 / JSON原文）", expanded=False):
         st.write("MODEL =", MODEL)
