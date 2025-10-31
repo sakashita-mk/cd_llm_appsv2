@@ -168,20 +168,23 @@ def render():
     st.markdown(f"**ユースケース名：** {usecase}")
     st.markdown(f"**観測目的：** {goal}")
 
-    # 「やること」→「観測要件」
-    st.markdown("### 観測要件")
+    # ✅ 観測目的の直下に「やること（actions）」を移動
     if actions:
+        st.caption("観測で実施すること")
         st.markdown("- " + "\n- ".join(actions))
-    else:
-        st.markdown("- （観測要件が未入力です）")
 
-    # 観測バンド/解像度/頻度：説明つきの分かりやすい表現に統一
+    # ✅ 観測要件の下には 3 指標のみを掲載
+    st.markdown("### 観測要件")
+
+    # 使う波長帯
     st.markdown("**使う波長帯（観測バンド）** 例：可視・近赤外・短波赤外・熱赤外")
     st.markdown(str(bands))
 
+    # 目標の解像度
     st.markdown("**目標の解像度（地上分解能） [m]** 例：10mなら圃場レベルの把握が可能")
     st.markdown(str(gsd_m) if gsd_m is not None else "（未指定）")
 
+    # 目標の更新間隔
     st.markdown("**目標の更新間隔（観測頻度） [日]** 例：3日なら天候を跨いで監視しやすい")
     st.markdown(str(revisit) if revisit is not None else "（未指定）")
 
