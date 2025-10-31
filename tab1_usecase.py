@@ -10,6 +10,13 @@ from satellites_db import SATELLITES
 load_dotenv()
 API_KEY = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
 MODEL = st.secrets.get("GROQ_MODEL") or os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant"
+try:
+    if client:
+        ids = [m.id for m in client.models.list().data]
+        st.sidebar.write("🔎 Groq models available:", ids)
+except Exception as e:
+    st.sidebar.write("Model list error:", str(e))
+    
 client  = Groq(api_key=API_KEY) if API_KEY else None
 
 # ========= システムプロンプト =========
