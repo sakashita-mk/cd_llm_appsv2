@@ -151,7 +151,7 @@ def render():
             st.rerun()
 
     with col_ok:
-        if st.session_state.get("draft_plan") and st.button("OK（次へ）", type="secondary"):
+        if st.session_state.get("draft_plan") and st.button("OK（Tab2へ反映）", type="secondary"):
             st.session_state["confirmed_plan"] = st.session_state["draft_plan"]
             st.success("観測設計ドラフトを確定しました。Tab2に進めます。")
 
