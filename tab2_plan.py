@@ -6,10 +6,19 @@ import pandas as pd
 def render():
     st.subheader("構成方針提示（Tab2）")
 
-    final_plan = st.session_state.get("final_plan")
-    if not final_plan:
-        st.info("Tab1で『OK（Tab2へ反映）』すると、ここに構成方針が表示されます。")
+    plan = st.session_state.get("confirmed_plan")
+    if not plan:
+        st.info("Tab1で『OK（次へ）』を押すと、ここに構成方針が表示されます。")
         return
+
+    # --- 表示ロジック（暫定で中身確認用） ---
+    st.success("✅ Tab1から観測設計ドラフトを受け取りました！")
+    st.markdown(f"**ユースケース名：** {plan.get('usecase', '未設定')}")
+    st.markdown(f"**観測目的：** {plan.get('goal', '未設定')}")
+
+    with st.expander("受け取ったJSONデータ", expanded=False):
+        st.code(json.dumps(plan, ensure_ascii=False, indent=2), language="json")
+        
 
     # --- 基本情報 ---
     st.markdown("### 基本情報")
