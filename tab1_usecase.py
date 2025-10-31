@@ -121,7 +121,7 @@ def render():
     with col_gen:
         if not client:
             st.warning("GROQ_API_KEY が未設定です（Manage app → Settings → Secrets）。LLM生成は無効。")
-        if st.button("下見立てを生成（LLM）", type="primary", disabled=(client is None)):
+        if st.button("観測設計ドラフトを生成（LLM）", type="primary", disabled=(client is None)):
             with st.spinner("LLMで観測設計ドラフトを作成中..."):
                 try:
                     resp = client.chat.completions.create(
