@@ -225,7 +225,7 @@ def render():
             st.markdown(f"- **{s.get('name','(名称不明)')}**：{s.get('why','')}")
     else:
         st.markdown("- （候補なし）")
-
+'''
     st.markdown("#### 補完・取得戦略")
     st.markdown(f"- 雲対策: {complements.get('cloud_mitigation', '（未記載）')}")
     if complements.get("alternative_layers"):
@@ -269,7 +269,7 @@ def render():
     if assumptions:
         st.markdown("### 前提条件")
         st.markdown("- " + "\n- ".join(assumptions))
-
+'''
     # Debug expander
     with st.expander("デバッグ（MODEL / APIキー有無 / JSON原文）", expanded=False):
         st.write("MODEL =", MODEL)
