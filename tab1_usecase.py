@@ -1,219 +1,192 @@
 # tab1_usecase.py
-from __future__ import annotations
-import os, json, re, io
+# Tab1: ユースケース入力 → 観測設計ドラフト（LLM案）生成
+import os
+import json
+import re
+from typing import Dict, Any, List, Optional
+
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
-from satellites_db import SATELLITES
 
-# ========= 環境変数 & Secrets =========
+
+# ========= Env / Secrets =========
 load_dotenv()
-API_KEY = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
+
+API_KEY = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
+# ※ 既存互換: 外から上書きできるようにしつつ安全なデフォルトを用意
 MODEL = st.secrets.get("GROQ_MODEL") or os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant"
-try:
-    if client:
-        ids = [m.id for m in client.models.list().data]
-        st.sidebar.write("🔎 Groq models available:", ids)
-except Exception as e:
-    st.sidebar.write("Model list error:", str(e))
-    
-client  = Groq(api_key=API_KEY) if API_KEY else None
 
-# ========= システムプロンプト =========
-PROMPT_SYS = (
-    "あなたは衛星リモートセンシングの技術コンサルタントです。"
-    "ユーザーの自由記述ユースケースを読み、以下のJSONのみで出力してください。"
-    "フィールド: {"
-    '"usecase_name": string,'
-    '"objective": string,'
-    '"actions": string[],'
-    '"requirements": {'
-    '  "bands": string[],'
-    '  "spatial_resolution_m_target": number,'
-    '  "revisit_days_target": number'
-    "}"
-    "}"
-)
+client = Groq(api_key=API_KEY) if API_KEY else None
 
-def _prompt_messages(uc_text: str):
-    user = (
-        "ユースケース:\n"
-        f"{uc_text}\n\n"
-        "上記を実現するための観測設計を提示してください。\n"
-        "- objective: 何を把握・評価（または監視）したいか\n"
-        "- actions: 目的達成のために何をするか（例: 植生指数で作物ストレス推定、熱画像で冷害推定、SARで洪水抽出 など）\n"
-        "- requirements: 推奨観測バンド（bands）、目標空間分解能[m]、目標観測頻度[日]\n"
-        "出力はJSONのみ。説明文は書かないでください。"
+
+# ========= Helpers (既存踏襲 + 安全化) =========
+def _extract_json_block(text: str) -> str:
+    """```json ... ``` or 最初の { ... } を抽出（簡易ネスト対応）。"""
+    if not text:
+        return "{}"
+
+    m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.DOTALL)
+    if m:
+        return m.group(1).strip()
+
+    start = text.find("{")
+    if start < 0:
+        return "{}"
+    depth = 0
+    for i, ch in enumerate(text[start:], start=start):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1].strip()
+    return "{}"
+
+
+def _json_loads_safe(s: str) -> Dict[str, Any]:
+    try:
+        return json.loads(s)
+    except Exception:
+        return {}
+
+
+def _prompt_messages(uc_text: str) -> List[Dict[str, str]]:
+    """元の設計思想を保ちつつ、名称/用語だけ整える。"""
+    sys = (
+        "あなたは衛星データの観測設計エンジニアです。"
+        "ユーザーのユースケース説明から、観測要件を簡潔にドラフト化してください。"
+        "出力時は、人間可読の短い要約→JSON（有効な1オブジェクト）の順で提示してください。"
     )
+    usr = f"""ユースケース説明:
+{uc_text}
+
+出力要件:
+1) まず人間可読の短い要約を書いた後、JSONを1つだけ返す
+2) JSONスキーマ（固定）:
+{{
+  "usecase": "短いユースケース名",
+  "goal": "観測目的（1〜2文）",
+  "requirements": {{
+    "actions": ["観測/推定したいこと（箇条書き）"],
+    "bands": "使う波長帯（例: 可視・近赤外・短波赤外・熱赤外）",
+    "gsd_m": 10,
+    "revisit_days": 3
+  }}
+}}
+
+注意:
+- 数値は数値型
+- 不明なら妥当な初期値を推奨
+- 1000トークン以内
+"""
     return [
-        {"role": "system", "content": PROMPT_SYS},
-        {"role": "user", "content": user},
+        {"role": "system", "content": sys},
+        {"role": "user", "content": usr},
     ]
 
-# ========= ユーティリティ =========
-def _extract_json_block(text: str) -> str:
-    """バッククォート付きのJSONコードブロックを優先抽出（無ければ全文）"""
-    m = re.search(r"```(?:json)?\s*(.+?)\s*```", text, re.DOTALL)
-    return (m.group(1) if m else text).strip()
 
-def _json_loads_safe(s: str):
-    """最小限の安全ロード。壊れていたらそのまま例外を上げる（デバッグ用に生テキスト表示）"""
-    return json.loads(s)
+def _inject_css():
+    """既存UIを壊さない範囲で視認性UP。"""
+    st.markdown(
+        """
+<style>
+html, body, [class*="css"] { font-size: 16px; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; margin-top: .5rem; }
+h3 { font-size: 1.25rem; margin-top: .5rem; }
+ul, ol { line-height: 1.6; }
+.stButton>button { padding: .6rem 1rem; font-size: 1rem; }
+.block-container { padding-top: .75rem; }
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-def _parse_min_res(s: str) -> float:
-    # 例: "0.31/1.24/3.7" → 0.31, "5–40" → 5, "約 3"→3
-    s = (s or "").replace("–", "/").replace("約", "")
-    nums = re.findall(r"\d+\.?\d*", s)
-    return float(nums[0]) if nums else 9999.0
 
-def _parse_revisit_days(s: str) -> float:
-    # 例: "5 日", "< 1 日", "6–12 日", "1 日 (constellation)" → 平均値
-    s = (s or "").replace("日", "").replace("<", "").strip()
-    parts = re.split(r"[/\-–\s]+", s)
-    nums = [float(p) for p in parts if re.match(r"^\d+\.?\d*$", p)]
-    return sum(nums) / len(nums) if nums else 9999.0
-
-def _search_satellites(bands, res_target: float, revisit_target: float):
-    """ゆるい一致で候補抽出し、目標に近い順に上位を返す"""
-    recs = []
-    for sat in SATELLITES:
-        res = _parse_min_res(sat.get("spatial_resolution_m"))
-        rv  = _parse_revisit_days(sat.get("revisit"))
-        band_text = (sat.get("spectral_band", "") or "").lower()
-
-        band_ok = all(b.lower() in band_text for b in (bands or [])) if bands else True
-        res_ok  = (res <= res_target * 1.5)
-        rv_ok   = (rv  <= revisit_target * 1.5)
-        if band_ok and res_ok and rv_ok:
-            recs.append(sat)
-
-    def score(sat):
-        res = _parse_min_res(sat.get("spatial_resolution_m"))
-        rv  = _parse_revisit_days(sat.get("revisit"))
-        return abs(res - res_target) + abs(rv - revisit_target)
-
-    recs.sort(key=score)
-    return recs[:5]
-
-def _json_download_bytes(data: dict) -> bytes:
-    buf = io.BytesIO()
-    buf.write(json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8"))
-    buf.seek(0)
-    return buf.read()
-
-# ========= メイン描画 =========
+# ========= Main =========
 def render():
-    st.subheader("ユースケース入力（Tab1）")
+    _inject_css()
 
+    st.caption("ユースケースを自由に記述")
     default_uc = (
         "農業保険の損害査定は現地調査に時間とコストがかかり、迅速な支払いが困難。"
         "衛星データを活用して、干ばつや冷害などの被害を評価できるようにしたい。"
     )
-    uc_text = st.text_area(
-        "ユースケースを自由に記述",
-        value=default_uc,
-        height=160,
-        help="自由記述で課題や目的、期待する効果を書いてください。"
-    )
+    uc_text = st.text_area("ユースケース入力（Tab1）", value=default_uc, height=140)
 
-    # セッション初期化
-    st.session_state.setdefault("draft_plan", None)
+    # 生成/クリア ボタン（元の配置を崩さず拡張）
+    col_gen, col_clear = st.columns([1, 1])
 
-    # 生成ボタン
-    col_gen, _ = st.columns([1, 1])
     with col_gen:
         if not client:
             st.warning("GROQ_API_KEY が未設定です（Manage app → Settings → Secrets）。LLM生成は無効。")
         if st.button("下見立てを生成（LLM）", type="primary", disabled=(client is None)):
-            with st.spinner("LLMで観測設計の下見立てを作成中..."):
-                resp = client.chat.completions.create(
-                    model=MODEL,
-                    temperature=0.1,
-                    max_tokens=1000,
-                    messages=_prompt_messages(uc_text),
-                )
+            with st.spinner("LLMで観測設計ドラフトを作成中..."):
+                try:
+                    resp = client.chat.completions.create(
+                        model=MODEL,
+                        temperature=0.1,
+                        max_tokens=1000,
+                        messages=_prompt_messages(uc_text),
+                    )
+                except Exception as e:
+                    st.error(f"Groq API呼び出しエラー: {e}")
+                    return
+
                 text = resp.choices[0].message.content or ""
                 try:
                     data = _json_loads_safe(_extract_json_block(text))
                     st.session_state["draft_plan"] = data
                 except Exception as e:
-                    st.error(f"JSONの解析に失敗しました: {e}")
+                    st.error(f"JSON解析に失敗しました: {e}")
                     with st.expander("LLM生テキスト（デバッグ用）", expanded=False):
-                        st.code(text, language="json")
+                        st.code(text, language="markdown")
 
-    draft = st.session_state.get("draft_plan")
+    with col_clear:
+        if st.button("修正が必要", type="secondary"):
+            # 出力のみクリア（入力テキストは保持）
+            st.session_state.pop("draft_plan", None)
+            st.success("出力を削除しました。")
+            st.rerun()
+
+    draft: Optional[Dict[str, Any]] = st.session_state.get("draft_plan")
     if not draft:
         return
 
-    # ===== 人間可読ビュー =====
-    st.markdown("### 下見立て（LLM案・人間可読ビュー）")
-    usecase_name = draft.get("usecase_name") or "（名称未設定）"
-    objective    = draft.get("objective") or ""
-    actions      = draft.get("actions") or []
-    req          = draft.get("requirements") or {}
-    bands        = req.get("bands") or []
-    res_target   = req.get("spatial_resolution_m_target")
-    rv_target    = req.get("revisit_days_target")
+    # === 人間可読ビュー（名称・用語をリフレッシュ） ===
+    st.subheader("観測設計ドラフト（LLM案）")
 
-    st.write(f"**ユースケース名**：{usecase_name}")
-    st.write(f"**観測目的**：{objective if objective else '—'}")
+    usecase = draft.get("usecase") or "（名称未設定）"
+    goal = draft.get("goal") or "（観測目的未記載）"
+    req = draft.get("requirements") or {}
+    actions = req.get("actions") or []
+    bands = req.get("bands") or "（未指定）"
+    gsd_m = req.get("gsd_m")
+    revisit = req.get("revisit_days")
 
-    st.markdown("**やること（Actions）**")
+    st.markdown(f"**ユースケース名：** {usecase}")
+    st.markdown(f"**観測目的：** {goal}")
+
+    # 「やること」→「観測要件」
+    st.markdown("### 観測要件")
     if actions:
-        for a in actions:
-            st.markdown(f"- {a}")
+        st.markdown("- " + "\n- ".join(actions))
     else:
-        st.write("—")
+        st.markdown("- （観測要件が未入力です）")
 
-    st.markdown("**要求指標（ターゲット）**")
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        st.metric("観測バンド", ", ".join(bands) if bands else "—")
-    with m2:
-        st.metric("空間分解能 目標 [m]", str(res_target) if res_target is not None else "—")
-    with m3:
-        st.metric("観測頻度 目標 [日]", str(rv_target) if rv_target is not None else "—")
+    # 観測バンド/解像度/頻度：説明つきの分かりやすい表現に統一
+    st.markdown("**使う波長帯（観測バンド）** 例：可視・近赤外・短波赤外・熱赤外")
+    st.markdown(str(bands))
 
-    # JSONダウンロード
-    with st.expander("詳細（JSON／再現用）", expanded=False):
+    st.markdown("**目標の解像度（地上分解能） [m]** 例：10mなら圃場レベルの把握が可能")
+    st.markdown(str(gsd_m) if gsd_m is not None else "（未指定）")
+
+    st.markdown("**目標の更新間隔（観測頻度） [日]** 例：3日なら天候を跨いで監視しやすい")
+    st.markdown(str(revisit) if revisit is not None else "（未指定）")
+
+    # （任意）デバッグ支援は残しつつ折りたたみ
+    with st.expander("デバッグ（MODEL / APIキー有無 / JSON原文）", expanded=False):
+        st.write("MODEL =", MODEL)
+        st.write("Has GROQ_API_KEY =", bool(API_KEY))
         st.code(json.dumps(draft, ensure_ascii=False, indent=2), language="json")
-        st.download_button(
-            "この下見立てJSONをダウンロード",
-            data=_json_download_bytes(draft),
-            file_name=f"draft_plan_{usecase_name}.json",
-            mime="application/json",
-        )
-
-    # ===== OK / 修正 =====
-    ok_col, ng_col = st.columns([1, 1])
-    with ok_col:
-        if st.button("OK（Tab2へ反映）", type="primary"):
-            # 数値フォールバック
-            res_f = float(res_target if isinstance(res_target, (int, float)) else 30.0)
-            rv_f  = float(rv_target  if isinstance(rv_target,  (int, float)) else 5.0)
-
-            # 候補衛星
-            recs = _search_satellites(bands, res_f, rv_f)
-            proposed = [f'{r["mission_name"]} / {r["instrument_name"]}' for r in recs[:3]]
-
-            supplemental = (
-                "要求された空間分解能・観測頻度・バンド条件に近い衛星を候補抽出。"
-                "無償データ（Sentinel/Landsat）を優先しつつ、要件が厳しければ有償のVHR/高頻度コンステを併用します。"
-            )
-
-            st.session_state["final_plan"] = {
-                "usecase_name": usecase_name,
-                "observation_objective": objective,
-                "observation_bands": bands,
-                "spatial_resolution_target_m": res_f,
-                "revisit_target_days": rv_f,
-                "recommended_satellites": recs,
-                "proposed_configuration": proposed,
-                "supplemental_note": supplemental,
-            }
-            st.success("Tab2に反映しました。「Tab2: 構成方針提示」を開いてください。")
-
-    with ng_col:
-        if st.button("修正が必要（下見立てクリア）"):
-            st.session_state["draft_plan"] = None
-            st.info("下見立てをクリアしました。ユースケースを修正して再生成してください。")
